@@ -1,56 +1,53 @@
 import { useState } from "react";
-
-const USERS_KEY = "todoUsers";
-
-function getUsers() {
-  return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-}
+import { signup, login } from "../apis/authApi";
 
 function LoginPage({ onLoginSuccess }) {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!userId.trim() || !password.trim()) {
       alert("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
 
-    const users = getUsers();
-    const isExistingUser = users.some((user) => user.userId === userId);
+    try {
+      await signup({
+        username: userId.trim(),
+        password: password.trim(),
+      });
 
-    if (isExistingUser) {
-      alert("이미 가입된 아이디입니다.");
-      return;
+      alert("회원가입이 완료되었습니다!");
+    } catch (error) {
+      console.error(error);
+
+      alert("회원가입에 실패했습니다.");
     }
-
-    const newUser = {
-      userId,
-      password,
-    };
-
-    localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
-    alert("회원가입이 완료되었습니다!");
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!userId.trim() || !password.trim()) {
       alert("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
 
-    const users = getUsers();
+    try {
+      const data = await login({
+        username: userId.trim(),
+        password: password.trim(),
+      });
 
-    const matchedUser = users.find(
-      (user) => user.userId === userId && user.password === password
-    );
+      console.log("로그인 응답:", data);
 
-    if (!matchedUser) {
-      alert("아이디 또는 비밀번호가 일치하지 않습니다.");
-      return;
+      localStorage.setItem("memberId", data.member_id);
+      localStorage.setItem("currentUser", userId.trim());
+
+      alert("로그인 성공");
+      onLoginSuccess(userId.trim());
+    } catch (error) {
+      console.error(error);
+      alert("로그인 실패");
     }
-
-    onLoginSuccess(userId);
   };
 
   return (

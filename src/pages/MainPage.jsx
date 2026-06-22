@@ -1,7 +1,23 @@
 import { useEffect, useState } from "react";
+import { getTodos, createTodo } from "../apis/todoApi";
+
 import CalendarBox from "../components/CalendarBox";
 import TodoForm from "../components/TodoForm";
 import TodoList from "../components/TodoList";
+
+function mapApiTodo(todo) {
+  return {
+    id: todo.todo_id,
+    title: todo.content,
+    date: todo.date.slice(0, 10),
+    completed: todo.is_checked,
+    emoji: todo.emoji || "✅",
+  };
+}
+
+function makeApiDate(dateKey) {
+  return `${dateKey}T00:00:00.000000`;
+}
 
 function getDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -17,36 +33,52 @@ function getKoreanDate(dateKey) {
 }
 
 function MainPage({ currentUser, onLogout }) {
-  const storageKey = `todos-${currentUser}`;
+  const memberId = localStorage.getItem("memberId");
 
+  const [todos, setTodos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getDateKey());
-  const [todos, setTodos] = useState(() => {
-    return JSON.parse(localStorage.getItem(storageKey)) || [];
-  });
-
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(todos));
-  }, [todos, storageKey]);
+  const fetchTodos = async () => {
+    try {
+      const data = await getTodos(memberId);
+      console.log("투두 조회 응답:", data);
 
-  const handleAddTodo = ({ title, emoji }) => {
-    const newTodo = {
-      id: Date.now(),
-      title,
-      emoji,
-      date: selectedDate,
-      completed: false,
-    };
+      const mappedTodos = Array.isArray(data) ? data.map(mapApiTodo) : [];
+      setTodos(mappedTodos);
+    } catch (error) {
+      console.error("투두 조회 실패:", error);
+    }
+  };
 
-    setTodos([newTodo, ...todos]);
+  if (memberId) {
+    fetchTodos();
+  }
+}, [memberId]);
+
+  const handleAddTodo = async ({ title }) => {
+    try {
+      const data = await createTodo(memberId, {
+        date: makeApiDate(selectedDate),
+        content: title,
+      });
+
+      console.log("투두 작성 응답:", data);
+
+      const newTodo = mapApiTodo(data);
+      setTodos([newTodo, ...todos]);
+    } catch (error) {
+      console.error("투두 작성 실패:", error);
+      alert("할 일 작성에 실패했습니다.");
+    }
   };
 
   const handleToggleTodo = (todoId) => {
     setTodos(
       todos.map((todo) =>
-        todo.id === todoId ? { ...todo, completed: !todo.completed } : todo
-      )
+        todo.id === todoId ? { ...todo, completed: !todo.completed } : todo,
+      ),
     );
   };
 
@@ -57,8 +89,8 @@ function MainPage({ currentUser, onLogout }) {
   const handleEditTodo = (todoId, updatedTodo) => {
     setTodos(
       todos.map((todo) =>
-        todo.id === todoId ? { ...todo, ...updatedTodo } : todo
-      )
+        todo.id === todoId ? { ...todo, ...updatedTodo } : todo,
+      ),
     );
   };
 

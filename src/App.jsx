@@ -19,6 +19,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("memberId");
     setCurrentUser(null);
     setPage("login");
   };
