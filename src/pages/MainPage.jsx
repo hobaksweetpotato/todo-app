@@ -11,12 +11,35 @@ function mapApiTodo(todo) {
     title: todo.content,
     date: todo.date.slice(0, 10),
     completed: todo.is_checked,
-    emoji: todo.emoji || "✅",
+    emoji: todo.emoji || "",
   };
 }
 
 function makeApiDate(dateKey) {
   return `${dateKey}T00:00:00.000000`;
+}
+
+function getEmojiStorageKey(memberId) {
+  return `todo-emojis-${memberId}`;
+}
+
+function getSavedEmojis(memberId) {
+  return JSON.parse(localStorage.getItem(getEmojiStorageKey(memberId))) || {};
+}
+
+function saveTodoEmoji(memberId, todoId, emoji) {
+  const savedEmojis = getSavedEmojis(memberId);
+
+  if (emoji) {
+    savedEmojis[todoId] = emoji;
+  } else {
+    delete savedEmojis[todoId];
+  }
+
+  localStorage.setItem(
+    getEmojiStorageKey(memberId),
+    JSON.stringify(savedEmojis),
+  );
 }
 
 function getDateKey(date = new Date()) {
@@ -40,22 +63,34 @@ function MainPage({ currentUser, onLogout }) {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-  const fetchTodos = async () => {
-    try {
-      const data = await getTodos(memberId);
-      console.log("투두 조회 응답:", data);
+    const fetchTodos = async () => {
+      try {
+        const data = await getTodos(memberId);
+        console.log("투두 조회 응답:", data);
 
-      const mappedTodos = Array.isArray(data) ? data.map(mapApiTodo) : [];
-      setTodos(mappedTodos);
-    } catch (error) {
-      console.error("투두 조회 실패:", error);
+        const savedEmojis = getSavedEmojis(memberId);
+
+        const mappedTodos = Array.isArray(data)
+          ? data.map((todo) => {
+              const mappedTodo = mapApiTodo(todo);
+
+              return {
+                ...mappedTodo,
+                emoji: savedEmojis[mappedTodo.id] || mappedTodo.emoji,
+              };
+            })
+          : [];
+
+        setTodos(mappedTodos);
+      } catch (error) {
+        console.error("투두 조회 실패:", error);
+      }
+    };
+
+    if (memberId) {
+      fetchTodos();
     }
-  };
-
-  if (memberId) {
-    fetchTodos();
-  }
-}, [memberId]);
+  }, [memberId]);
 
   const handleAddTodo = async ({ title }) => {
     try {
@@ -91,6 +126,14 @@ function MainPage({ currentUser, onLogout }) {
       todos.map((todo) =>
         todo.id === todoId ? { ...todo, ...updatedTodo } : todo,
       ),
+    );
+  };
+
+  const handleEmojiChange = (todoId, emoji) => {
+    saveTodoEmoji(memberId, todoId, emoji);
+
+    setTodos(
+      todos.map((todo) => (todo.id === todoId ? { ...todo, emoji } : todo)),
     );
   };
 
@@ -209,6 +252,7 @@ function MainPage({ currentUser, onLogout }) {
               onToggleTodo={handleToggleTodo}
               onDeleteTodo={handleDeleteTodo}
               onEditTodo={handleEditTodo}
+              onEmojiChange={handleEmojiChange}
             />
           </section>
         </main>
