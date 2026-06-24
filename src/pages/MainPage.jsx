@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { getTodos, createTodo } from "../apis/todoApi";
+import {
+  getTodos,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+  toggleTodoCheck,
+  updateTodoReview,
+} from "../apis/todoApi";
 
 import CalendarBox from "../components/CalendarBox";
 import TodoForm from "../components/TodoForm";
@@ -109,32 +116,66 @@ function MainPage({ currentUser, onLogout }) {
     }
   };
 
-  const handleToggleTodo = (todoId) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === todoId ? { ...todo, completed: !todo.completed } : todo,
-      ),
-    );
+  const handleToggleTodo = async (todoId) => {
+    try {
+      const data = await toggleTodoCheck(memberId, todoId);
+      console.log("완료 토글 응답:", data);
+
+      setTodos(
+        todos.map((todo) => (todo.id === todoId ? mapApiTodo(data) : todo)),
+      );
+    } catch (error) {
+      console.error("완료 토글 실패:", error);
+      alert("완료 상태 변경에 실패했습니다.");
+    }
   };
 
-  const handleDeleteTodo = (todoId) => {
-    setTodos(todos.filter((todo) => todo.id !== todoId));
+  const handleDeleteTodo = async (todoId) => {
+    try {
+      await deleteTodo(memberId, todoId);
+
+      setTodos(todos.filter((todo) => todo.id !== todoId));
+    } catch (error) {
+      console.error("투두 삭제 실패:", error);
+      alert("할 일 삭제에 실패했습니다.");
+    }
   };
 
-  const handleEditTodo = (todoId, updatedTodo) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === todoId ? { ...todo, ...updatedTodo } : todo,
-      ),
-    );
+  const handleEditTodo = async (todoId, updatedTodo) => {
+    try {
+      const originalTodo = todos.find((todo) => todo.id === todoId);
+
+      const data = await updateTodo(memberId, todoId, {
+        date: makeApiDate(originalTodo.date),
+        content: updatedTodo.title,
+      });
+
+      console.log("투두 수정 응답:", data);
+
+      setTodos(
+        todos.map((todo) => (todo.id === todoId ? mapApiTodo(data) : todo)),
+      );
+    } catch (error) {
+      console.error("투두 수정 실패:", error);
+      alert("할 일 수정에 실패했습니다.");
+    }
   };
 
-  const handleEmojiChange = (todoId, emoji) => {
-    saveTodoEmoji(memberId, todoId, emoji);
+  const handleEmojiChange = async (todoId, emoji) => {
+    try {
+      const data = await updateTodoReview(memberId, todoId, {
+        emoji,
+      });
 
-    setTodos(
-      todos.map((todo) => (todo.id === todoId ? { ...todo, emoji } : todo)),
-    );
+      console.log("투두 리뷰 응답:", data);
+
+      setTodos(
+        todos.map((todo) => (todo.id === todoId ? mapApiTodo(data) : todo)),
+      );
+    } catch (error) {
+      console.error("투두 리뷰 실패:", error);
+      alert("리뷰 이모지 저장에 실패했습니다.");
+    }
   };
 
   const selectedTodos = todos.filter((todo) => todo.date === selectedDate);
