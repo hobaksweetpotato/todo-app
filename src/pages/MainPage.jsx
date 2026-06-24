@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  getTodos,
+  getDailyTodos,
   createTodo,
   updateTodo,
   deleteTodo,
-  toggleTodoCheck,
   updateTodoReview,
+  toggleTodoCheck,
 } from "../apis/todoApi";
 
 import CalendarBox from "../components/CalendarBox";
@@ -62,6 +62,15 @@ function getKoreanDate(dateKey) {
   return `${Number(month)}월 ${Number(day)}일`;
 }
 
+function getMonthAndDay(dateKey) {
+  const [, month, day] = dateKey.split("-");
+
+  return {
+    month: Number(month),
+    day: Number(day),
+  };
+}
+
 function MainPage({ currentUser, onLogout }) {
   const memberId = localStorage.getItem("memberId");
 
@@ -70,34 +79,24 @@ function MainPage({ currentUser, onLogout }) {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    const fetchTodos = async () => {
-      try {
-        const data = await getTodos(memberId);
-        console.log("투두 조회 응답:", data);
+  const fetchDailyTodos = async () => {
+    try {
+      const { month, day } = getMonthAndDay(selectedDate);
 
-        const savedEmojis = getSavedEmojis(memberId);
+      const data = await getDailyTodos(memberId, month, day);
+      console.log("날짜별 투두 조회 응답:", data);
 
-        const mappedTodos = Array.isArray(data)
-          ? data.map((todo) => {
-              const mappedTodo = mapApiTodo(todo);
-
-              return {
-                ...mappedTodo,
-                emoji: savedEmojis[mappedTodo.id] || mappedTodo.emoji,
-              };
-            })
-          : [];
-
-        setTodos(mappedTodos);
-      } catch (error) {
-        console.error("투두 조회 실패:", error);
-      }
-    };
-
-    if (memberId) {
-      fetchTodos();
+      const mappedTodos = Array.isArray(data) ? data.map(mapApiTodo) : [];
+      setTodos(mappedTodos);
+    } catch (error) {
+      console.error("날짜별 투두 조회 실패:", error);
     }
-  }, [memberId]);
+  };
+
+  if (memberId) {
+    fetchDailyTodos();
+  }
+}, [memberId, selectedDate]);
 
   const handleAddTodo = async ({ title }) => {
     try {
@@ -117,18 +116,20 @@ function MainPage({ currentUser, onLogout }) {
   };
 
   const handleToggleTodo = async (todoId) => {
-    try {
-      const data = await toggleTodoCheck(memberId, todoId);
-      console.log("완료 토글 응답:", data);
+  try {
+    const data = await toggleTodoCheck(memberId, todoId);
+    console.log("완료 토글 응답:", data);
 
-      setTodos(
-        todos.map((todo) => (todo.id === todoId ? mapApiTodo(data) : todo)),
-      );
-    } catch (error) {
-      console.error("완료 토글 실패:", error);
-      alert("완료 상태 변경에 실패했습니다.");
-    }
-  };
+    setTodos(
+      todos.map((todo) =>
+        todo.id === todoId ? mapApiTodo(data) : todo
+      ),
+    );
+  } catch (error) {
+    console.error("완료 토글 실패:", error);
+    alert("완료 상태 변경에 실패했습니다.");
+  }
+};
 
   const handleDeleteTodo = async (todoId) => {
     try {
@@ -178,7 +179,7 @@ function MainPage({ currentUser, onLogout }) {
     }
   };
 
-  const selectedTodos = todos.filter((todo) => todo.date === selectedDate);
+  const selectedTodos = todos;
 
   const filteredTodos = selectedTodos.filter((todo) => {
     if (filter === "done") return todo.completed;
